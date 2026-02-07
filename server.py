@@ -152,6 +152,11 @@ def update_user(user_id):
 @app.post("/api/expenses")
 def create_expense():
     data = request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "No data found to create an expense!"
+        }), 400
     title = data.get("title")
     description = data.get("description")
     amount = data.get("amount")
@@ -172,6 +177,121 @@ def create_expense():
         "success": True,
         "message": "Expense created successfully"
     }), 201
+
+@app.get("/api/expenses")
+def get_expenses():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM expenses")
+    rows = cursor.fetchall()
+    conn.close()
+
+    expenses = []
+    for row in rows:
+        expense = {
+            "id": row["id"],
+            "title": row["title"],
+            "category": row["category"],
+            "user_id": row["user_id"]
+        }
+        expenses.append(expense)
+
+    return jsonify({
+        "success": True,
+        "message": "Expenses retrieved successfully",
+        "data": expenses
+    }), 200
+
+@app.get("/api/expenses/<int:expense_id>")
+def get_expense(expense_id):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM expenses WHERE id=?", (expense_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        conn.close()
+        return jsonify({
+            "success": False,
+            "message": "Expense not found"
+        }), 404
+
+    expense = {
+        "id": row["id"],
+        "title": row["title"],
+        "description": row["description"],
+        "amount": row["amount"],
+        "date": row["date"],
+        "category": row["category"],
+        "user_id": row["user_id"]
+    }
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "message": "Expense retrieved successfully",
+        "data": expense
+    }), 200
+
+@app.delete("/api/expenses/<int:expense_id>")
+def delete_expense(expense_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM expenses WHERE id=?", (expense_id,))
+
+    if not cursor.fetchone(): #check to see if it exists
+        conn.close()
+        return jsonify({
+            "success": False,
+            "message": "Expense not found"
+        }), 404
+
+    cursor.execute("DELETE FROM expenses WHERE id=?", (expense_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "message": "Expense deleted successfully"
+    }), 200
+
+@app.put("/api/expenses/<int:expense_id>")
+def update_expense(expense_id):
+    data = request.get_json()
+    title = data.get("title")
+    description = data.get("description")
+    amount = data.get("amount")
+    date = data.get("date")
+    category = data.get("category")
+    user_id = data.get("user_id")
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE expenses
+            SET title=?, description=?, amount=?, date=?, category=?, user_id=?
+            WHERE id=?
+        """, (title, description, amount, date, category, user_id, expense_id))
+        conn.commit()
+        return jsonify({
+            "success": True,
+            "message": "Expense updated successfully"
+        }), 200
+    except sqlite3.IntegrityError as e:
+        # IntegrityError is most likely when an attribute has any specific options
+        return jsonify({"error": f"Something went wrong: {str(e)}"}), 400
+    except sqlite3.OperationalError as e:
+        # OperationalError wraps SQL syntax errors, missing table/columns
+        return jsonify({"error": f"Database operational error: {str(e)}"}), 500
+    except sqlite3.DatabaseError as e:
+        # DatabaseError is for general databases errors
+        return jsonify({"error": f"Database error {str(e.sqlite_errorcode)}: {str(e)}"}), 500
+    finally:
+        conn.close()
+
 
 if __name__ == '__main__':
     init_db()
