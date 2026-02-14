@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}
+About Me
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h1 class="card-title">About Me</h1>
+        <!-- '{{ NAME_OF_THE_PARAMETER }}' is the placeholder to reach variables sent from python -->
+        <h3>Hello I'm {{ name }}</h3>
+        <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Ut facilis possimus cum, iure nam quis dicta eum eveiet</p>
+        <p><strong>Hobbies:</strong></p>
+        <ul class="list-group list-group-flush">
+            {% for item in hobbies %}
+            <li class="list-group-item">{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
